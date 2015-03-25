@@ -1,0 +1,24 @@
+{
+  "name": "alcatraz/owl",
+  "description": "ORM Alcatraz Framework.",
+  "authors": [
+    {
+      "name": "Gabriel Malaquias",
+      "email": "g@gmalaquias.com"
+    }
+  ],
+  "keywords": ["alcatraz", "owl", "orm"],
+  "license": "MIT",
+  "type": "library",
+   "autoload": {
+        "psr-0": { "Alcatraz\\Owl\\": "" }
+    },
+    "require" : {
+      "alcatraz/kernel" : "1.0.0",
+      "alcatraz/modelstate" : "1.0.0",
+      "alcatraz/string" : "1.0.0",
+      "alcatraz/arrayhelper" : "1.0.0"
+    },
+    "target-dir": "Alcatraz"
+
+}
