@@ -6,22 +6,25 @@
  * Time: 14:55
  */
 
-namespace Helpers\ClassGenerator;
+namespace Alcatraz\Owl\Generator;
 
+use Alcatraz\Components\String\StringHelper;
+use Alcatraz\Kernel\Database;
+use Alcatraz\Owl\Generator\Template\Template;
 
-use Helpers\ClassGenerator\Template\Template;
-use Helpers\StringHelper;
-use Mvc\Model;
-
-class ClassGenerator extends Model
+class ClassGenerator
 {
 
     private $fields = array();
 
     private $verify = array();
 
+    private $db;
+
     public function run()
     {
+        $this->db = new Database();
+
         if (!is_dir(APP . "Entities"))
             @mkdir(APP . "Entities");
         if (!is_dir(APP . "Entities" . DS . "Generator"))
@@ -151,7 +154,8 @@ class ClassGenerator extends Model
             }
         endforeach;
 
-        $template = new Template(ALCATRAZ . "owl" . DS . "Alcatraz" . DS . "Owl" . DS . "Generator" . DS ."ClasseTemplate.tpl");
+        echo ALCATRAZ . "owl" . DS . "Alcatraz" . DS . "Owl" . DS . "Generator" . DS . "template" . DS . "ClasseTemplate.tpl";
+        $template = new Template(ALCATRAZ . "owl" . DS . "Alcatraz" . DS . "Owl" . DS . "Generator" . DS . "template" . DS . "ClasseTemplate.tpl");
         $template->set('date', date("d/m/Y H:i:s"));
         $template->set('C', ucfirst($table));
         $template->set('vars', $vars);
