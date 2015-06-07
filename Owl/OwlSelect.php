@@ -8,7 +8,6 @@
 
 namespace Alcatraz\Owl;
 
-use Helpers\Components\ArrayHelper\ArrayHelper;
 use Alcatraz\ModelState\ModelStatee;
 use Alcatraz\Components\String\StringHelper;
 use Alcatraz\Kernel\Database;
@@ -87,6 +86,11 @@ class OwlSelect implements iOwl
      * Guarda a opção DISTINCT do mysql
      */
     public $distinct;
+
+    /**
+     * Guarda os array do PDO para select no where
+     */
+    public $where_array = array();
 
     /**
      * Guarda o having da query
@@ -170,11 +174,24 @@ class OwlSelect implements iOwl
         return $this;
     }
 
-    public function Where($where){
+    public function Where($where, array $values = array()){
         if($this->where == null)
             $this->where = $where;
         else
             $this->where .= " AND (".$where.")";
+
+        $this->where_array = array_merge($this->where_array, $values);
+
+        return $this;
+    }
+
+    public function WhereOR($where, array $values = array()){
+        if($this->where == null)
+            $this->where = $where;
+        else
+            $this->where .= " OR (".$where.")";
+
+        $this->where_array = array_merge($this->where_array, $values);
 
         return $this;
     }
@@ -234,11 +251,11 @@ class OwlSelect implements iOwl
 
     private function BuildJoin($type, $join, $on, $on2){
         if($this->join == null && StringHelper::Contains($on,"."))
-            $this->as = " AS ". ArrayHelper::getFirstElement(explode(".", $on));
+            $this->as = " AS ". $this->getFistelement(explode(".", $on));
 
         $as = "";
         if(StringHelper::Contains($on2,"."))
-            $as = " AS " . ArrayHelper::getFirstElement(explode(".", $on2));
+            $as = " AS " . $this->getFistelement(explode(".", $on2));
 
         if($join instanceof OwlSelect) {
             if($join->join != null){
@@ -250,9 +267,16 @@ class OwlSelect implements iOwl
             }
             $this->Where($join->where);
         }
-        else if(is_string($join)){
-            $this->join .= " " .$type . " JOIN " . $join . $as . " ON " . $on . " = " . $on2;
-        }else
+        else if(is_string($join) && $this->join == null)
+            $this->join .= " " . $type . " JOIN " . $join . $as . " ON " . $on . " = " . $on2;
+        else if(is_string($join)) {
+
+            if(StringHelper::Contains($on,"."))
+                $as = " AS " . $this->getFistelement(explode(".", $on));
+
+            $this->join .= " " . $type . " JOIN " . $join . $as . " ON " . $on . " = " . $on2;
+        }
+        else
             throw new OwlException("Tipo não válido");
     }
 
@@ -262,7 +286,7 @@ class OwlSelect implements iOwl
 
         $query = $this->getQuery();
 
-        $result = $this->db->select($query, (class_exists($classe) && !$this->getUnique ? $classe : ''), $all);
+        $result = $this->db->select($query, (class_exists($classe) && !$this->getUnique ? $classe : ''), $all, $this->where_array);
 
         return $this->ExecutePersist($result, $all);
     }
@@ -284,6 +308,7 @@ class OwlSelect implements iOwl
 
         $query .= $this->orderby;
 
+        //echo $query;
 
         return $query;
     }
@@ -333,5 +358,9 @@ class OwlSelect implements iOwl
             return $result[0];
 
         return $result;
+    }
+
+    private function getFistelement(array $array){
+        return $array[0];
     }
 } 

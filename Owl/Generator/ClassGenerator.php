@@ -153,7 +153,7 @@ class ClassGenerator
                 }
             }
         endforeach;
-        
+
         $template = new Template(ALCATRAZ . "owl" . DS . "Alcatraz" . DS . "Owl" . DS . "Generator" . DS . "template" . DS . "ClasseTemplate.tpl");
         $template->set('date', date("d/m/Y H:i:s"));
         $template->set('C', ucfirst($table));
