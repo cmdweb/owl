@@ -4,7 +4,7 @@
   "authors": [
     {
       "name": "Gabriel Malaquias",
-      "email": "g@gmalaquias.com"
+      "email": "gemalaquias@gmail.com"
     }
   ],
   "keywords": ["alcatraz", "owl", "orm"],
@@ -14,11 +14,10 @@
         "psr-0": { "Alcatraz\\Owl\\": "" }
     },
     "require" : {
-      "alcatraz/kernel" : "1.0.0",
-      "alcatraz/modelstate" : "1.0.0",
-      "alcatraz/string" : "1.0.0",
-      "alcatraz/arrayhelper" : "1.0.0"
+      "alcatraz/kernel" : "^1.1.0",
+      "alcatraz/modelstate" : "^1.1.0",
+      "alcatraz/string" : "^1.1.0",
+      "alcatraz/arrayhelper" : "^1.1.0"
     },
     "target-dir": "Alcatraz"
-
 }
