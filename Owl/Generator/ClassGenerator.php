@@ -21,9 +21,14 @@ class ClassGenerator
 
     private $db;
 
-    public function run()
+    private $otherDB = false;
+
+    public function run(Database $db = null)
     {
-        $this->db = new Database();
+        if($db != null)
+            $this->db = $db;
+        else
+            $this->db = new Database();
 
         if (!is_dir(APP . "Entities"))
             @mkdir(APP . "Entities");
@@ -36,7 +41,7 @@ class ClassGenerator
     private function getTables()
     {
         //Consulta as tabelas
-        $tables = $this->db->Select("SELECT TABLE_NAME AS Name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '" . DB_NAME . "'", '', true);
+        $tables = $this->db->Select("SELECT TABLE_NAME AS Name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '" . $this->db->getDbName() . "'", '', true);
 
         if (is_array($tables)):
             foreach ($tables as $table):

@@ -8,6 +8,7 @@
 
 namespace Alcatraz\Owl;
 
+use Alcatraz\Annotation\Annotation;
 use Alcatraz\ModelState\ModelState;
 use Alcatraz\Kernel\Database;
 
@@ -16,7 +17,7 @@ class Owl extends Database {
     /**
      * Guarda se a transação ja foi aberta ou não
      */
-    private $transactionActive = false;
+    private static $transactionActive = false;
 
     /**
      * Construtor
@@ -85,7 +86,7 @@ class Owl extends Database {
 
 
         // Prepara a Query
-        $sth = $this->prepare("INSERT INTO $table (`$camposNomes`) VALUES ($camposValores)");
+        $sth = Database::$instance->prepare("INSERT INTO $table (`$camposNomes`) VALUES ($camposValores)");
 
         // Define os dados
         foreach ($data as $key => $value) {
@@ -97,16 +98,12 @@ class Owl extends Database {
         }
 
         // Executa
-        try {
-            $sth->execute();
-        }catch (\Exception $e){
-            echo $e->getMessage();
-        }
+        $sth->execute();
 
         $primaryKey = ModelState::GetPrimary($model);
         if(!empty($primaryKey))
-            $model->$primaryKey = $this->lastInsertId();
-        return $this->lastInsertId();
+            $model->$primaryKey = Database::$instance->lastInsertId();
+        return Database::$instance->lastInsertId();
     }
 
     /**
@@ -143,7 +140,7 @@ class Owl extends Database {
         $novosDados = rtrim($novosDados, ',');
 
         // Prepara a Query
-        $sth = $this->prepare("UPDATE $table SET $novosDados WHERE $primaryKey = '".$model->$primaryKey."'");
+        $sth = Database::$instance->prepare("UPDATE $table SET $novosDados WHERE $primaryKey = '".$model->$primaryKey."'");
 
         // Define os dados
         foreach ($campos as $key) {
@@ -175,7 +172,7 @@ class Owl extends Database {
         $table = $this->getTableName($model);
 
         if($primaryKey != null) {
-            $exec = $this->prepare("DELETE FROM " . $table . " WHERE " . $primaryKey . " = " . $model->$primaryKey . " LIMIT 1");
+            $exec = Database::$instance->prepare("DELETE FROM " . $table . " WHERE " . $primaryKey . " = " . $model->$primaryKey . " LIMIT 1");
             $exec->execute();
             if($exec->rowCount() > 0)
                 return true;
@@ -190,16 +187,16 @@ class Owl extends Database {
      * @return bool
      */
     public function Save(){
-        if($this->transactionActive) {
+        if(self::$transactionActive) {
             try {
-                $this->commit();
-                $this->exec("SET FOREIGN_KEY_CHECKS = 1;");
+                Database::$instance->commit();
+                Database::$instance->exec("SET FOREIGN_KEY_CHECKS = 1;");
             } catch (\Exception $e) {
-                $this->rollBack();
+                Database::$instance->rollBack();
                 echo $e->getMessage();
             }
 
-            $this->transactionActive = false;
+            self::$transactionActive = false;
         }
 
         return false;
@@ -209,10 +206,10 @@ class Owl extends Database {
      * Abre a transaçao com o banco caso não esteja aberta
      */
     private function OpenTransaction(){
-        if(!$this->transactionActive) {
-            $this->beginTransaction();
-            $this->exec("SET FOREIGN_KEY_CHECKS = 0;");
-            $this->transactionActive = true;
+        if(!self::$transactionActive) {
+            Database::$instance->beginTransaction();
+            Database::$instance->exec("SET FOREIGN_KEY_CHECKS = 0;");
+            self::$transactionActive = true;
         }
     }
 
@@ -222,13 +219,9 @@ class Owl extends Database {
      * @return mixed
      */
     private function getTableName($model){
-        return str_replace(NAMESPACE_ENTITIES , "",  get_class($model));
+        $annotation = new Annotation($model);
+        return $annotation->getTableName();
     }
 
-    /**
-     * Destroi a classe
-     */
-    function __destruct(){
-        unset($this);
-    }
+    
 }

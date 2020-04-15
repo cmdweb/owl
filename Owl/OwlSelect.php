@@ -8,7 +8,8 @@
 
 namespace Alcatraz\Owl;
 
-use Alcatraz\ModelState\ModelStatee;
+use Alcatraz\Annotation\Annotation;
+use Alcatraz\ModelState\ModelState;
 use Alcatraz\Components\String\StringHelper;
 use Alcatraz\Kernel\Database;
 
@@ -16,6 +17,7 @@ class OwlSelect implements iOwl
 {
     /**
      * Guarda a seção de db do OWL
+     * @return Database
      */
     private $db;
 
@@ -23,7 +25,7 @@ class OwlSelect implements iOwl
      * Passa nomes dos attributos virtuais para seu preenchimento
      * @var bool
      */
-    public $persist;
+    private $persist;
 
     /**
      * Guarda os valores de orderby da query
@@ -60,60 +62,60 @@ class OwlSelect implements iOwl
     /**
      * Guarda o where para a query
      */
-    public $where = null;
+    private $where = null;
 
     /**
      * Guarda os joins
      */
-    public $join = null;
+    private $join = null;
 
     /**
      * alias da tabela principal
      */
-    public $as;
+    private $as;
 
     /**
      * Classe de retorno do join
      */
-    public $classe = null;
+    private $classe = null;
 
     /**
      * Guarda o groupby da query
      */
-    public $groupby;
+    private $groupby;
 
     /**
      * Guarda a opção DISTINCT do mysql
      */
-    public $distinct;
+    private $distinct;
 
     /**
      * Guarda os array do PDO para select no where
      */
-    public $where_array = array();
+    private $where_array = array();
 
     /**
      * Guarda o having da query
      */
-    public $having = null;
+    private $having = null;
 
     public function __construct($type, $where, $persist, $db)
     {
-        $this->type = $type;
+        $this->type = ucfirst($type);
         $this->persist = $persist;
         $this->db = $db;
         $this->where = $where;
     }
 
-    public function FirstOrDefault()
+    public function FirstOrDefault($print = false)
     {
         $this->limit = 1;
-        return $this->ExecuteQuery(false);
+        return $this->ExecuteQuery(false, $print);
     }
 
-    public function ToList()
+    public function ToList($print = false)
     {
-        return $this->ExecuteQuery(true);
+        return $this->ExecuteQuery(true, $print);
     }
 
     public function OrderBy($campo)
@@ -249,7 +251,13 @@ class OwlSelect implements iOwl
         return NAMESPACE_ENTITIES . $this->type;
     }
 
+    private function getClassFrom($type){
+        return (class_exists(NAMESPACE_ENTITIES . $type) ? NAMESPACE_ENTITIES . $type : null);
+    }
+
+
     private function BuildJoin($type, $join, $on, $on2){
+
         if($this->join == null && StringHelper::Contains($on,"."))
             $this->as = " AS ". $this->getFistelement(explode(".", $on));
 
@@ -263,14 +271,16 @@ class OwlSelect implements iOwl
                 $this->join .= " " . $join->getQuery();
                 $this->join .= ")" . $as . " ON " . $on . " = " . $on2;
             }else {
-                $this->join .= " " . $type . " JOIN " . $join->type . $as . " ON " . $on . " = " . $on2;
+                $this->join .= " " . $type . " JOIN " . $this->getTableName($join->type) . $as . " ON " . $on . " = " . $on2;
             }
             $this->Where($join->where);
         }
-        else if(is_string($join) && $this->join == null)
+        else if(is_string($join) && $this->join == null) {
+            $join = $this->getTableName(ucfirst($join));
             $this->join .= " " . $type . " JOIN " . $join . $as . " ON " . $on . " = " . $on2;
+        }
         else if(is_string($join)) {
-
+            $join = $this->getTableName(ucfirst($join));
             if(StringHelper::Contains($on,"."))
                 $as = " AS " . $this->getFistelement(explode(".", $on));
 
@@ -280,11 +290,14 @@ class OwlSelect implements iOwl
             throw new OwlException("Tipo não válido");
     }
 
-    private function ExecuteQuery($all = true)
+    private function ExecuteQuery($all = true, $print = false)
     {
         $classe = $this->getClass();
 
         $query = $this->getQuery();
+
+        if($print)
+            echo $query . "<br>" . "<br>";
 
         $result = $this->db->select($query, (class_exists($classe) && !$this->getUnique ? $classe : ''), $all, $this->where_array);
 
@@ -293,10 +306,14 @@ class OwlSelect implements iOwl
 
     private function getQuery()
     {
+        $this->type = $this->getTableName($this->type);
+
         $query = "SELECT " . $this->distinct . $this->select . " FROM " . $this->type . $this->as . $this->join .
             (!empty($this->where) ? " WHERE " . $this->where : "") .
             $this->groupby .
             (!empty($this->having) ? " HAVING " . $this->having : "");
+
+        $query .= $this->orderby;
 
         if ($this->limit != null && $this->skip != null)
             $query .= " LIMIT " . $this->skip . ',' . $this->limit;
@@ -306,11 +323,22 @@ class OwlSelect implements iOwl
             $query .= " LIMIT " . $this->skip . ', 10000000000';
 
 
-        $query .= $this->orderby;
-
         //echo $query;
 
         return $query;
+    }
+
+    /**
+     * @param $type
+     * @return string
+     */
+    private function getTableName($type){
+        $class = $this->getClassFrom($type);
+        if($class != null){
+            $ann = new Annotation($class);
+            return $ann->getTableName();
+        }
+        return $type;
     }
 
     private function ExecutePersist($result, $all)
@@ -322,6 +350,7 @@ class OwlSelect implements iOwl
 
         $obj = NAMESPACE_ENTITIES . $this->type;
         $obj = new $obj;
+
 
         $virtuals = ModelState::GetVirtuals($obj);
 
@@ -347,10 +376,11 @@ class OwlSelect implements iOwl
                     $novoPersist = null;
                 }
                 $table = $virtuals[$p]["Type"];
-                $fk = $virtuals[$p]["Fk"];
+                $fk1 = $virtuals[$p]["Fk"];
+                $fk = ModelState::GetPrimary($obj);
 
                 $owl = new Owl();
-                $result[$i]->$p = $owl->Get($table, $fk . " = " . $result[$i]->$fk, $novoPersist)->ToList();
+                $result[$i]->$p = $owl->Get($table, $fk . " = " . $result[$i]->$fk1, $novoPersist)->FirstOrDefault();
             }
         }
 
